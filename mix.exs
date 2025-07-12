@@ -33,6 +33,7 @@ defmodule Jjx.MixProject do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
+      {:rustler, "~> 0.36.2"},
       {:styler, "~> 1.4", only: [:dev, :test], runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:phoenix, "~> 1.8.0-rc.3", override: true},
