@@ -1,4 +1,4 @@
-# NIF for Jj.Nif
+# NIF for Jj.Native
 
 ## To build the NIF module:
 
@@ -7,7 +7,7 @@
 ## To load the NIF:
 
 ```elixir
-defmodule Jj.Nif do
+defmodule Jj.Native do
   use Rustler, otp_app: :jjx, crate: "jj_nif"
 
   # When your NIF is loaded, it will override this function.
