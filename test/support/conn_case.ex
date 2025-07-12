@@ -20,6 +20,7 @@ defmodule JjxWeb.ConnCase do
   using do
     quote do
       use JjxWeb, :verified_routes
+
       import JjxWeb.ConnCase
       import Phoenix.ConnTest
       import Plug.Conn

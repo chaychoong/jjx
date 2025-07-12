@@ -1,0 +1,12 @@
+[package]
+name = "jj_nif"
+version = "0.1.0"
+authors = []
+edition = "2021"
+
+[lib]
+name = "jj_nif"
+crate-type = ["cdylib"]
+
+[dependencies]
+rustler = "0.36.2"
