@@ -1,5 +1,9 @@
+use jj_cli::config::{
+    config_from_environment, default_config_layers, resolved_config_values, ConfigEnv,
+};
+use jj_cli::ui::Ui;
 use jj_lib::{
-    config::StackedConfig,
+    config::{ConfigNamePathBuf, ConfigSource},
     repo::{ReadonlyRepo, Repo, StoreFactories},
     settings::UserSettings,
     workspace::{
@@ -58,16 +62,30 @@ fn commit_to_erl_commit(repo: &ReadonlyRepo, commit: &jj_lib::commit::Commit) ->
     }
 }
 
+fn get_settings_from_path(path: &Path) -> Result<UserSettings, Error> {
+    let mut raw_config = config_from_environment(default_config_layers());
+    let mut config_env = ConfigEnv::from_environment(&Ui::null());
+    let _ = config_env.reload_user_config(&mut raw_config);
+    config_env.reset_repo_path(Path::new(&path));
+    let _ = config_env.reload_repo_config(&mut raw_config);
+
+    let config = config_env
+        .resolve_config(&raw_config)
+        .map_err(|_e| Error::Atom("Failed to resolve config".into()))?;
+    let settings = UserSettings::from_config(config)
+        .map_err(|_e| Error::Atom("Failed to create settings".into()))?;
+
+    Ok(settings)
+}
+
 #[rustler::nif]
 fn get_workspace(path: String) -> Result<WorkspaceArc, Error> {
     let path = Path::new(&path);
+    let settings = get_settings_from_path(path)?;
     let factory = DefaultWorkspaceLoaderFactory;
     let loader = factory
         .create(&path)
         .map_err(|_e| Error::Atom("Failed to create workspace loader".into()))?;
-    let config = StackedConfig::with_defaults();
-    let settings = UserSettings::from_config(config)
-        .map_err(|_e| Error::Atom("Failed to create settings".into()))?;
     let workspace = loader
         .load(
             &settings,
@@ -77,6 +95,27 @@ fn get_workspace(path: String) -> Result<WorkspaceArc, Error> {
         .map_err(|_e| Error::Atom("Failed to load workspace".into()))?;
 
     Ok(ResourceArc::new(WorkspaceResource(Mutex::new(workspace))))
+}
+
+#[rustler::nif]
+fn get_configs(path: String) -> Result<Vec<(String, String)>, Error> {
+    let settings = get_settings_from_path(Path::new(&path))?;
+    let mut annotated_values =
+        resolved_config_values(&settings.config(), &ConfigNamePathBuf::root());
+    annotated_values.retain(|annotated| !annotated.is_overridden);
+    annotated_values.retain(|annotated| annotated.source != ConfigSource::Default);
+
+    let annotated_values = annotated_values
+        .iter()
+        .map(|annotated| {
+            (
+                annotated.name.to_string(),
+                annotated.value.clone().decorated("", "").to_string(),
+            )
+        })
+        .collect();
+
+    Ok(annotated_values)
 }
 
 #[rustler::nif]

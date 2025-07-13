@@ -9,6 +9,7 @@ name = "jj_nif"
 crate-type = ["cdylib"]
 
 [dependencies]
+jj-cli = "0.31.0"
 jj-lib = "0.31.0"
 rustler = { version = "0.36.2", features = ["serde"] }
 serde = "1.0.219"

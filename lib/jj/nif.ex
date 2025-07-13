@@ -25,6 +25,7 @@ defmodule Jj.Native do
   @moduledoc false
   use Rustler, otp_app: :jjx, crate: "jj_nif"
 
+  def get_configs(_path), do: :erlang.nif_error(:nif_not_loaded)
   def get_workspace(_path), do: :erlang.nif_error(:nif_not_loaded)
   def simple_log(_workspace), do: :erlang.nif_error(:nif_not_loaded)
 end
