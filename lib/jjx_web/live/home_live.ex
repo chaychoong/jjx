@@ -7,7 +7,15 @@ defmodule JjxWeb.HomeLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    {:ok, assign(socket, path: Local.get_home(), error: nil, workspace: nil, configs: [], show_settings_modal: false)}
+    {:ok,
+     assign(socket,
+       path: Local.get_home(),
+       error: nil,
+       workspace: nil,
+       configs: [],
+       show_settings_modal: false,
+       revset: ""
+     )}
   end
 
   @impl true
@@ -15,12 +23,12 @@ defmodule JjxWeb.HomeLive do
     ~H"""
     <Layouts.app flash={@flash}>
       <div class="mx-auto max-w-sm">
-        <form phx-change="update_path" class="join">
+        <form phx-submit="validate_path" class="join">
           <label class="input join-item">
-            Path <input type="text" class="grow" name="path" value={@path} />
+            <.icon name="hero-folder" /><input type="text" class="grow" name="path" value={@path} />
           </label>
+          <button class="btn btn-neutral join-item" type="submit">Open</button>
         </form>
-        <button class="btn btn-neutral join-item" phx-click="validate_path">Open</button>
         <%= if @error do %>
           <p class="mt-2 text-sm text-error">{@error}</p>
         <% end %>
@@ -28,7 +36,14 @@ defmodule JjxWeb.HomeLive do
       <%= if @workspace do %>
         <div class="mt-4">
           <div class="overflow-visible">
-            <h1 class="text-lg font-bold">Log</h1>
+            <div class="w-full">
+              <form phx-submit="change_revset" class="join w-full">
+                <label class="input join-item w-full">
+                  <.icon name="hero-magnifying-glass" />
+                  <input type="text" class="grow w-full font-mono" name="revset" value={@revset} />
+                </label>
+              </form>
+            </div>
             <table class="table">
               <thead>
                 <tr>
@@ -117,32 +132,39 @@ defmodule JjxWeb.HomeLive do
   end
 
   @impl true
-  def handle_event("update_path", %{"path" => path}, socket) do
-    {:noreply, assign(socket, :path, path)}
-  end
+  def handle_event("validate_path", %{"path" => path}, socket) do
+    if Local.validate_jj_repo(path) do
+      workspace = Native.get_workspace(path)
+      configs = Native.get_configs(path)
 
-  @impl true
-  def handle_event("validate_path", _params, socket) do
-    if Local.validate_jj_repo(socket.assigns.path) do
-      workspace = Native.get_workspace(socket.assigns.path)
-      configs = Native.get_configs(socket.assigns.path)
+      revset =
+        Enum.find_value(configs, fn {name, value} ->
+          if name == "revsets.log" do
+            String.trim(value, "\"")
+          end
+        end)
+
       {:ok, log} = Native.simple_log(workspace)
 
       {:noreply,
        assign(socket,
          error: nil,
+         path: path,
          workspace: workspace,
          configs: configs,
          log: log,
-         show_settings_modal: false
+         show_settings_modal: false,
+         revset: revset
        )}
     else
       {:noreply,
        assign(socket,
-         error: ".jj not found in: #{socket.assigns.path}",
+         error: ".jj not found in: #{path}",
+         path: path,
          workspace: nil,
          configs: [],
-         show_settings_modal: false
+         show_settings_modal: false,
+         revset: ""
        )}
     end
   end
@@ -155,5 +177,16 @@ defmodule JjxWeb.HomeLive do
   @impl true
   def handle_event("close_settings_modal", _params, socket) do
     {:noreply, assign(socket, :show_settings_modal, false)}
+  end
+
+  @impl true
+  def handle_event("change_revset", %{"revset" => revset}, socket) do
+    case Native.log(socket.assigns.workspace, revset) do
+      {:ok, log} ->
+        {:noreply, assign(socket, revset: revset, log: log)}
+
+      {:error, error} ->
+        {:noreply, assign(socket, revset: revset, error: error)}
+    end
   end
 end
