@@ -14,10 +14,11 @@ defmodule JjxWeb.Router do
     plug :accepts, ["json"]
   end
 
-  scope "/", JjxWeb do
-    pipe_through :browser
-
-    get "/", PageController, :home
+  live_session :default, on_mount: [] do
+    scope "/", JjxWeb do
+      pipe_through :browser
+      live "/", HomeLive
+    end
   end
 
   # Other scopes may use custom stacks.
