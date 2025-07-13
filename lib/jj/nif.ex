@@ -1,15 +1,23 @@
 defmodule Jj.Native.Commit do
   @moduledoc false
-  defstruct id: nil,
+  defstruct change_id: nil,
+            change_id_short_len: nil,
+            commit_id: nil,
+            commit_id_short_len: nil,
             message_first_line: nil,
             author_name: nil,
-            author_email: nil
+            author_email: nil,
+            timestamp: nil
 
   @type t :: %__MODULE__{
-          id: String.t(),
+          change_id: String.t(),
+          change_id_short_len: integer(),
+          commit_id: String.t(),
+          commit_id_short_len: integer(),
           message_first_line: String.t(),
           author_name: String.t(),
-          author_email: String.t()
+          author_email: String.t(),
+          timestamp: integer()
         }
 end
 
