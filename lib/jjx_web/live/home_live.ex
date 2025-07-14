@@ -183,7 +183,7 @@ defmodule JjxWeb.HomeLive do
   def handle_event("change_revset", %{"revset" => revset}, socket) do
     case Native.log(socket.assigns.workspace, revset) do
       {:ok, log} ->
-        {:noreply, assign(socket, revset: revset, log: log)}
+        {:noreply, assign(socket, revset: revset, log: log, error: nil)}
 
       {:error, error} ->
         {:noreply, assign(socket, revset: revset, error: error)}
