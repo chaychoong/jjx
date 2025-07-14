@@ -144,7 +144,7 @@ defmodule JjxWeb.HomeLive do
           end
         end)
 
-      {:ok, log} = Native.simple_log(workspace)
+      {:ok, log} = Native.log(workspace, revset)
 
       {:noreply,
        assign(socket,

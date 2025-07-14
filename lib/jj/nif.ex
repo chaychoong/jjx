@@ -27,6 +27,5 @@ defmodule Jj.Native do
 
   def get_configs(_path), do: :erlang.nif_error(:nif_not_loaded)
   def get_workspace(_path), do: :erlang.nif_error(:nif_not_loaded)
-  def simple_log(_workspace), do: :erlang.nif_error(:nif_not_loaded)
   def log(_workspace, _revset), do: :erlang.nif_error(:nif_not_loaded)
 end
