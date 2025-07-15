@@ -138,10 +138,9 @@ defmodule JjxWeb.HomeLive do
       configs = Native.get_configs(path)
 
       revset =
-        Enum.find_value(configs, fn {name, value} ->
-          if name == "revsets.log" do
-            String.trim(value, "\"")
-          end
+        Enum.find_value(configs, "ancestors(@, 10)", fn
+          {"revsets.log", value} -> String.trim(value, "\"")
+          _ -> nil
         end)
 
       {:ok, log} = Native.log(workspace, revset)
