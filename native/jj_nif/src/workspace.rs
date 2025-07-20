@@ -1,11 +1,13 @@
 use jj_cli::revset_util::load_revset_aliases;
 use jj_cli::ui::Ui;
+use jj_lib::config::ConfigGetResultExt;
 use jj_lib::id_prefix::IdPrefixContext;
 use jj_lib::repo::{ReadonlyRepo, StoreFactories};
 use jj_lib::repo_path::RepoPathUiConverter;
 use jj_lib::revset::{
-    RevsetAliasesMap, RevsetExtensions, RevsetParseContext, RevsetWorkspaceContext,
+    self, RevsetAliasesMap, RevsetExtensions, RevsetParseContext, RevsetWorkspaceContext,
 };
+use jj_lib::revset::{RevsetDiagnostics, RevsetModifier, UserRevsetExpression};
 use jj_lib::settings::UserSettings;
 use jj_lib::workspace::{
     default_working_copy_factories, DefaultWorkspaceLoaderFactory, Workspace,
@@ -15,6 +17,7 @@ use rustler::{Error, Resource, ResourceArc};
 use std::collections::HashMap;
 use std::default::Default;
 use std::path::Path;
+use std::rc::Rc;
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use crate::settings::get_settings_from_path;
@@ -38,7 +41,6 @@ pub type UnwrappedWorkspaceSettings<'a> = MutexGuard<'a, WorkspaceSettings>;
 pub struct WorkspaceData<'a> {
     pub workspace_settings: UnwrappedWorkspaceSettings<'a>,
     pub revset_extensions: Arc<RevsetExtensions>,
-    pub id_prefix_context: IdPrefixContext,
 }
 
 pub fn get_workspace_settings(path: &Path) -> Result<WorkspaceSettings, Error> {
@@ -81,11 +83,9 @@ pub fn wrap_workspace_settings(workspace_settings: WorkspaceSettings) -> Workspa
 pub fn get_workspace_data(resource: &WorkspaceArc) -> WorkspaceData {
     let workspace_settings = resource.0.lock().unwrap();
     let revset_extensions = Arc::new(RevsetExtensions::default());
-    let id_prefix_context = IdPrefixContext::new(revset_extensions.clone());
     WorkspaceData {
         workspace_settings,
         revset_extensions,
-        id_prefix_context,
     }
 }
 
@@ -105,6 +105,43 @@ impl<'a> WorkspaceData<'a> {
             date_pattern_context: chrono::Local::now().into(),
             extensions: &self.revset_extensions,
             workspace: Some(workspace_context),
+        }
+    }
+
+    // Referenced from load_short_prefixes_expression in jj/cli/src/cli_util.rs
+    fn load_short_prefixes_expression(&self) -> Result<Option<Rc<UserRevsetExpression>>, String> {
+        let revset_string = self
+            .workspace_settings
+            .settings
+            .get_string("revsets.short-prefixes")
+            .optional()
+            .map_err(|err| format!("Invalid `revsets.short-prefixes` {err}"))?
+            .map_or_else(
+                || self.workspace_settings.settings.get_string("revsets.log"),
+                Ok,
+            )
+            .map_err(|err| format!("Invalid `revsets.short-prefixes` {err}"))?;
+        if revset_string.is_empty() {
+            Ok(None)
+        } else {
+            let mut diagnostics = RevsetDiagnostics::new();
+            let (expression, modifier) = revset::parse_with_modifier(
+                &mut diagnostics,
+                &revset_string,
+                &self.get_revset_parse_context(),
+            )
+            .map_err(|err| format!("Invalid `revsets.short-prefixes` {err}"))?;
+            let (None | Some(RevsetModifier::All)) = modifier;
+            Ok(Some(expression))
+        }
+    }
+
+    pub fn get_id_prefix_context(&self) -> IdPrefixContext {
+        let context = IdPrefixContext::new(self.revset_extensions.clone());
+        let short_prefixes_expression = self.load_short_prefixes_expression().unwrap_or(None);
+        match short_prefixes_expression {
+            None => context,
+            Some(expression) => context.disambiguate_within(expression.clone()),
         }
     }
 }

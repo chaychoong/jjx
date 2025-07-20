@@ -50,6 +50,7 @@ fn log(
                 .map(|commit| {
                     commit_to_erl_commit(
                         workspace_data.workspace_settings.repo_readonly.as_ref(),
+                        &workspace_data.get_id_prefix_context(),
                         &commit,
                     )
                 })

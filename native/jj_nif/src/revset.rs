@@ -8,10 +8,11 @@ pub fn get_revset<'a>(
     revset_str: &str,
 ) -> Result<Box<dyn Revset + 'a>, String> {
     let revset_parse_context = workspace_data.get_revset_parse_context();
+    let id_prefix_context = workspace_data.get_id_prefix_context();
     let symbol_resolver = default_symbol_resolver(
         workspace_data.workspace_settings.repo_readonly.as_ref(),
         &revset_parse_context.extensions.symbol_resolvers(),
-        &workspace_data.id_prefix_context,
+        &id_prefix_context,
     );
 
     // Referenced from cmd_debug_revset in jj/cli/src/commands/debug/revset.rs

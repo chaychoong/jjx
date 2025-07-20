@@ -1,4 +1,5 @@
-use jj_lib::repo::{ReadonlyRepo, Repo};
+use jj_lib::id_prefix::IdPrefixContext;
+use jj_lib::repo::ReadonlyRepo;
 use rustler::NifStruct;
 
 #[derive(Debug, NifStruct)]
@@ -14,18 +15,27 @@ pub struct Commit {
     pub timestamp: i64,
 }
 
-pub fn commit_to_erl_commit(repo: &ReadonlyRepo, commit: &jj_lib::commit::Commit) -> Commit {
+pub fn commit_to_erl_commit(
+    repo: &ReadonlyRepo,
+    id_prefix_context: &IdPrefixContext,
+    commit: &jj_lib::commit::Commit,
+) -> Commit {
     let change_id = commit.change_id();
-    let change_id_short_len: u8 = repo
-        .shortest_unique_change_id_prefix_len(change_id)
+    let change_id_short_len = id_prefix_context
+        .populate(repo)
+        .unwrap()
+        .shortest_change_prefix_len(repo, change_id)
         .try_into()
         .unwrap_or(0);
+
     let commit_id = commit.id();
-    let commit_id_short_len: u8 = repo
-        .index()
-        .shortest_unique_commit_id_prefix_len(commit_id)
+    let commit_id_short_len = id_prefix_context
+        .populate(repo)
+        .unwrap()
+        .shortest_commit_prefix_len(repo, commit_id)
         .try_into()
         .unwrap_or(0);
+
     let commit_description = commit.description();
     let commit_author = commit.author();
 
